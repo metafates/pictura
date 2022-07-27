@@ -1,10 +1,8 @@
 use std::{fmt, fs};
 use std::error::Error;
 use std::io;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use colored::Colorize;
 use image::GenericImageView;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -47,28 +45,31 @@ pub fn init(name: &str) -> io::Result<()> {
 /// This is used to map a compressed image with metadata in it's name to a gallery image.
 #[derive(Serialize, Deserialize, Debug)]
 struct Mapping {
-    /// Image name
-    pub name: String,
+    /// Image name (without extension)
+    name: String,
     // Image extension
-    pub extension: String,
+    extension: String,
+    // Image category
+    category: Option<String>,
     /// Image width in px
-    pub width: u32,
+    width: u32,
     /// Image height in px
-    pub height: u32,
+    height: u32,
     /// Dominant color of an image in HEX format
-    pub color: String,
+    color: String,
     /// Unique identifier of an image
-    pub id: u32,
+    id: u32,
 }
 
 impl Mapping {
     pub fn new(path: &Path) -> Result<Self, Box<dyn Error>> {
-        // image name
+        // image name (without extension)
         let name = match path.file_stem() {
             Some(name) => name.to_str().unwrap().to_string(),
             None => return Err(io::Error::new(io::ErrorKind::Other, "Invalid path").into()),
         };
 
+        // image extension
         let extension = match path.extension() {
             Some(extension) => {
                 let extension = extension.to_str().unwrap().to_string();
@@ -77,8 +78,21 @@ impl Mapping {
                 }
 
                 extension
-            },
+            }
             None => return Err(io::Error::new(io::ErrorKind::Other, "Invalid path").into()),
+        };
+
+        let category = match path.parent() {
+            Some(parent) => {
+                let parent = parent.file_name().unwrap().to_str().unwrap().to_string();
+
+                if parent == get_wallpapers_dir().to_str().unwrap() {
+                    None
+                } else {
+                    Some(parent)
+                }
+            }
+            None => None,
         };
 
         let image = image::open(path)?;
@@ -99,6 +113,7 @@ impl Mapping {
         let mapping = Self {
             name,
             extension,
+            category,
             width,
             height,
             color,
@@ -106,6 +121,14 @@ impl Mapping {
         };
 
         Ok(mapping)
+    }
+
+    pub fn get_path(&self) -> PathBuf {
+        let filename = format!("{}.{}", self.name, self.extension);
+        match &self.category {
+            Some(category) => get_wallpapers_dir().join(category).join(filename),
+            None => get_wallpapers_dir().join(filename),
+        }
     }
 }
 
@@ -123,23 +146,70 @@ impl fmt::Display for Mapping {
     }
 }
 
+impl PartialEq for Mapping {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Mappings {
+    mappings: Option<Vec<Mapping>>,
+}
+
 /// Sync the gallery with the filesystem.
 pub fn sync() -> Result<(), Box<dyn Error>> {
-    // let _mappings: Vec<Mapping> = toml::from_str(
-    //     fs::read_to_string(get_mappings_file())?.as_str()
-    // )?;
-
     let gallery_root = get_pictura_root_dir()?;
 
-    for entry in WalkDir::new(gallery_root.join(get_wallpapers_dir()))
+    let mappings: Mappings = toml::from_str(
+        fs::read_to_string(gallery_root.join(get_mappings_file()))?.as_str()
+    )?;
+
+    let mut mappings = mappings.mappings.unwrap_or(Vec::new());
+    let mut to_remove: Vec<usize> = Vec::with_capacity(mappings.len());
+    let mut to_add: Vec<PathBuf> = Vec::with_capacity(mappings.len());
+
+    let images: Vec<PathBuf> = WalkDir::new(gallery_root.join(get_wallpapers_dir()))
         .into_iter()
         .filter_entry(|e| !is_hidden(e))
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file() && is_image(e.path()))
-    {
-        let mapping = Mapping::new(entry.path())?;
-        println!("{}", mapping.to_string());
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    images
+        .iter()
+        .for_each(|i| {
+            // if mappings.iter().find(|m| m.name == i.file_stem().unwrap().to_str().unwrap()).is_none() {
+            if mappings.iter().find(|m| &gallery_root.join(m.get_path()) == i).is_none() {
+                println!("Adding {}", i.display());
+                to_add.push(i.clone());
+            }
+        });
+
+    mappings
+        .iter()
+        .enumerate()
+        .for_each(|(i, m)| {
+            if images.iter().find(|i| i == &&gallery_root.join(m.get_path())).is_none() {
+                println!("Removing {}", gallery_root.join(m.get_path()).display().to_string());
+                to_remove.push(i);
+            }
+        });
+
+    for index in to_remove {
+        mappings.remove(index);
     }
+
+    for image in to_add {
+        let mapping = Mapping::new(&image)?;
+        mappings.push(mapping);
+    }
+
+    fs::write(
+        gallery_root.join(get_mappings_file()),
+        toml::to_string(&Mappings { mappings: Some(mappings) })?,
+    )?;
 
     Ok(())
 }
@@ -187,13 +257,13 @@ fn rgb_to_hex(r: u8, g: u8, b: u8) -> String {
     format!("#{:02x}{:02x}{:02x}", r, g, b)
 }
 
-fn hex_to_rgb(hex: &str) -> (u8, u8, u8) {
-    let hex = hex.trim_start_matches("#");
-    let r = u8::from_str_radix(&hex[0..2], 16).unwrap();
-    let g = u8::from_str_radix(&hex[2..4], 16).unwrap();
-    let b = u8::from_str_radix(&hex[4..6], 16).unwrap();
-    (r, g, b)
-}
+// fn hex_to_rgb(hex: &str) -> (u8, u8, u8) {
+//     let hex = hex.trim_start_matches("#");
+//     let r = u8::from_str_radix(&hex[0..2], 16).unwrap();
+//     let g = u8::from_str_radix(&hex[2..4], 16).unwrap();
+//     let b = u8::from_str_radix(&hex[4..6], 16).unwrap();
+//     (r, g, b)
+// }
 
 fn is_image(path: &Path) -> bool {
     let ext = path.extension().unwrap_or("".as_ref()).to_str().unwrap();
