@@ -1,8 +1,29 @@
+use std::path::PathBuf;
+
 pub const PICTURA: &str = "pictura";
+pub const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png"];
 
-pub const WALLPAPERS_DIR: &str = "Wallpapers";
-pub const COMPRESSED_DIR: &str = "compressed";
-pub const MEDIUM_DIR: &str = "medium";
 
-pub const CONFIG_FILE: &str = "config.toml";
-pub const MAPPINGS_FILE: &str = "mappings.toml";
+pub fn get_pictura_dir() -> PathBuf {
+    PathBuf::from(format!(".{}", PICTURA))
+}
+
+pub fn get_wallpapers_dir() -> PathBuf {
+    PathBuf::from("Wallpapers")
+}
+
+pub fn get_compressed_dir() -> PathBuf {
+    get_pictura_dir().join("compressed")
+}
+
+pub fn get_medium_dir() -> PathBuf {
+    get_pictura_dir().join("medium")
+}
+
+pub fn get_config_file() -> PathBuf {
+    get_pictura_dir().join("config.toml")
+}
+
+pub fn get_mappings_file() -> PathBuf {
+    get_pictura_dir().join("mappings.toml")
+}

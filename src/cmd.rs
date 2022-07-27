@@ -44,6 +44,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             Ok(())
         }
         Some((SYNC_CMD, _)) => {
+            gallery::sync()?;
             Ok(())
         }
         _ => {
