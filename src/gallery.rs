@@ -62,7 +62,7 @@ struct Mapping {
 }
 
 impl Mapping {
-    pub fn new(path: &Path) -> Result<Self, Box<dyn Error>> {
+    pub fn new(path: &Path, img: &image::DynamicImage) -> Result<Self, Box<dyn Error>> {
         // image name (without extension)
         let name = match path.file_stem() {
             Some(name) => name.to_str().unwrap().to_string(),
@@ -95,12 +95,11 @@ impl Mapping {
             None => None,
         };
 
-        let image = image::open(path)?;
-        let (width, height) = image.dimensions();
+        let (width, height) = img.dimensions();
 
         // dominant color of an image in HEX format
         let color = color_thief::get_palette(
-            image.as_bytes(),
+            img.as_bytes(),
             color_thief::ColorFormat::Rgb,
             10,
             2,
@@ -134,15 +133,28 @@ impl Mapping {
 
 impl fmt::Display for Mapping {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "w-{}_h-{}_c-{}_i-{}.{}",
-            self.width,
-            self.height,
-            self.color,
-            self.id,
-            self.extension
-        )
+        if self.category.is_none() {
+            write!(
+                f,
+                "w-{}_h-{}_c-{}_i-{}.{}",
+                self.width,
+                self.height,
+                self.color,
+                self.id,
+                self.extension
+            )
+        } else {
+            write!(
+                f,
+                "w-{}_h-{}_c-{}_i-{}_k-{}.{}",
+                self.width,
+                self.height,
+                self.color,
+                self.id,
+                self.category.clone().unwrap(),
+                self.extension
+            )
+        }
     }
 }
 
@@ -198,11 +210,33 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         });
 
     for index in to_remove {
+        let metadata_name = mappings[index].to_string();
+        vec![
+            gallery_root.join(get_compressed_dir()).join(&metadata_name),
+            gallery_root.join(get_medium_dir()).join(&metadata_name),
+        ]
+            .into_iter()
+            .try_for_each(|path| fs::remove_file(path))?;
+
         mappings.remove(index);
     }
 
-    for image in to_add {
-        let mapping = Mapping::new(&image)?;
+    for image_path in to_add {
+        let img = image::open(&image_path)?;
+        let mapping = Mapping::new(&image_path, &img)?;
+        let (x, y) = (mapping.width, mapping.height);
+        let metadata_name = mapping.to_string();
+
+        // compressed
+        img
+            .thumbnail((x as f64 * 0.1).floor() as u32, (y as f64 * 0.1).floor() as u32)
+            .save(gallery_root.join(get_compressed_dir()).join(&metadata_name))?;
+
+        // medium
+        img
+            .thumbnail((x as f64 * 0.3).floor() as u32, (y as f64 * 0.3).floor() as u32)
+            .save(gallery_root.join(get_medium_dir()).join(&metadata_name))?;
+
         mappings.push(mapping);
     }
 
