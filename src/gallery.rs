@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::common::{get_compressed_dir, get_config_file, get_mappings_file, get_medium_dir, get_pictura_dir, get_wallpapers_dir, get_web_dir, IMAGE_EXTENSIONS};
-use crate::web;
+use crate::generator;
 
 /// Initialize a new gallery.
 pub fn init(name: &str) -> io::Result<()> {
@@ -42,7 +42,7 @@ pub fn init(name: &str) -> io::Result<()> {
 
     fs::write(
         get_web_dir().join("index.html"),
-        web::gen_html(name, Mappings::default()),
+        generator::gen_html(name, Mappings::default()),
     )?;
 
     Ok(())
@@ -297,7 +297,7 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
 
     fs::write(
         gallery_root.join(get_web_dir()).join("index.html"),
-        web::gen_html(config.name.as_str(), mappings),
+        generator::gen_html(config.name.as_str(), mappings),
     )?;
 
     Ok(())

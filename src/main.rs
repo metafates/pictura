@@ -1,7 +1,7 @@
 mod cmd;
 mod common;
 mod gallery;
-mod web;
+mod generator;
 
 fn main() {
     if let Err(e) = cmd::run() {

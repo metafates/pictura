@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 
 use handlebars::Handlebars;
@@ -10,9 +11,10 @@ use crate::gallery;
 pub fn gen_html(name: &str, mappings: gallery::Mappings) -> String {
     let mut reg = Handlebars::new();
     let hbs = include_str!("gallery.hbs");
-
     reg.register_template_string("gallery", hbs).unwrap();
+
     let mut mappings = mappings.mappings.unwrap_or(Vec::new());
+    let mut categories: HashSet<String> = HashSet::new();
     let page_dir = fs::canonicalize(get_web_dir()).unwrap();
 
     let re = regex::Regex::new(r"[-_ ]").unwrap();
@@ -20,6 +22,10 @@ pub fn gen_html(name: &str, mappings: gallery::Mappings) -> String {
     mappings
         .iter_mut()
         .for_each(|mapping| {
+            if let Some(category) = mapping.category.clone() {
+                categories.insert(category);
+            }
+
             mapping.name = re
                 .split(mapping.name.as_str())
                 .map(|s| capitalize(s))
@@ -47,6 +53,7 @@ pub fn gen_html(name: &str, mappings: gallery::Mappings) -> String {
         &json!({
             "title": name,
             "mappings": mappings,
+            "categories": categories,
         }))
         .unwrap()
 }
