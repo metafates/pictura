@@ -4,6 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use image::GenericImageView;
+use log::{info, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use walkdir::{DirEntry, WalkDir};
@@ -114,7 +115,7 @@ impl Mapping {
         let color = color_thief::get_palette(
             img.as_bytes(),
             color_thief::ColorFormat::Rgb,
-            10,
+            1,
             2,
         )?[0];
         let color = rgb_to_hex(color.r, color.g, color.b);
@@ -217,6 +218,8 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
     let mut mappings = mappings.mappings.unwrap_or(Vec::new());
     let mut to_remove: Vec<usize> = Vec::with_capacity(mappings.len());
     let mut to_add: Vec<PathBuf> = Vec::with_capacity(mappings.len());
+    let mut added: usize = 0;
+    let mut removed: usize = 0;
 
     mappings
         .iter_mut()
@@ -239,14 +242,26 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         .iter()
         .for_each(|i| {
             if mappings.iter().find(|m| &gallery_root.join(m.original.clone().unwrap()) == i).is_none() {
-                println!("Adding {}", i.display());
                 to_add.push(i.clone());
             }
         });
 
-    for image_path in to_add {
-        let img = image::open(&image_path)?;
-        let mut mapping = Mapping::new(&image_path, &img)?;
+    for image_path in to_add.iter() {
+        // TODO: print warning
+        let img = image::open(image_path);
+        if img.is_err() {
+            warn!("Failed to open image: {}\n{}", image_path.display(), img.err().unwrap());
+            continue;
+        }
+        let img = img.unwrap();
+
+        let mapping = Mapping::new(image_path, &img);
+        if mapping.is_err() {
+            warn!("Failed to create mapping: {}\n{}", image_path.display(), mapping.err().unwrap());
+            continue;
+        }
+        let mut mapping = mapping.unwrap();
+
         let (x, y) = (mapping.width, mapping.height);
         let metadata_name = mapping.to_string();
 
@@ -262,6 +277,8 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
 
         mapping.setup_paths()?;
         mappings.push(mapping);
+
+        added += 1;
     }
 
     mappings
@@ -269,13 +286,12 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         .enumerate()
         .for_each(|(i, m)| {
             if images.iter().find(|p| p == &&gallery_root.join(m.original.clone().unwrap())).is_none() {
-                println!("Removing {}", gallery_root.join(m.original.clone().unwrap()).display().to_string());
                 to_remove.push(i);
             }
         });
 
-    for index in to_remove {
-        let metadata_name = mappings[index].to_string();
+    for index in to_remove.iter() {
+        let metadata_name = mappings[index.clone()].to_string();
         vec![
             gallery_root.join(get_compressed_dir()).join(&metadata_name),
             gallery_root.join(get_medium_dir()).join(&metadata_name),
@@ -283,7 +299,9 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
             .into_iter()
             .try_for_each(|path| fs::remove_file(path))?;
 
-        mappings.remove(index);
+        mappings.remove(index.clone());
+
+        removed += 1;
     }
 
 
@@ -299,6 +317,8 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         gallery_root.join(get_web_dir()).join("index.html"),
         generator::gen_html(config.name.as_str(), mappings),
     )?;
+
+    info!("{added} images added, {removed} images removed");
 
     Ok(())
 }

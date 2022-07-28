@@ -13,37 +13,44 @@
 
 </head>
 <body>
-<div class="px-4 py-5 my-5 text-center">
+<div class="px-4 my-5 text-center">
     <h1>{{title}}</h1>
+    <p class="text-secondary">
+        {{length mappings}} Wallpapers
+    </p>
     <div class="container">
-        <div class="row">
-            <div class="col-3">
-                <label for="categories" class="form-label">Categories</label>
-                <select class="form-select" aria-label="Categories" id="categories">
-                    <option selected value="_">Any</option>
-                    {{#each categories}}
-                        <option value="{{this}}">{{this}}</option>
-                    {{/each}}
-                </select>
+        <div class="row h-100">
+            <div class="col-12 col-md-3">
+                <div class="h-100">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" aria-label="Categories" id="category">
+                        <option selected value="_">Any</option>
+                        {{#each categories}}
+                            <option value="{{this}}">{{this}}</option>
+                        {{/each}}
+                    </select>
+                </div>
             </div>
 
-            <div class="col-9">
-                <label for="name" class="form-label">Name</label>
-                <input class="form-control" aria-label="Name" id="name" type="text" placeholder="Search...">
+            <div class="col-12 col-md-9">
+                <div class="h-100">
+                    <label for="name" class="form-label">Name</label>
+                    <input class="form-control" aria-label="Name" id="name" type="text" placeholder="Search...">
+                </div>
             </div>
         </div>
     </div>
 </div>
 <div class="container-fluid py-3">
     <div class="row gy-3">
-        <div class="grid-sizer col-4"></div>
+        <div class="grid-sizer cod-12 col-md-6 col-lg-4"></div>
         {{#each mappings}}
-            <div class="grid-item col-4 wallpaper">
+            <div class="grid-item col-12 col-md-6 col-lg-4 wallpaper">
                 <div class="card">
-                    <img class="card-img-top" src="{{this.medium}}" alt="{{this.name}}" loading="lazy">
+                    <img class="card-img-top" src="{{relative-path this.medium}}" alt="{{this.name}}" loading="lazy">
                     <div class="card-body">
                         <h5 class="card-title">
-                            {{this.name}}
+                            {{title-case this.name}}
                         </h5>
                         <p class="card-text">
                         <span class="badge" style="background: #{{this.color}}">
@@ -55,8 +62,10 @@
                                 </span>
                             {{/if}}
                         </p>
-                        <a href="{{this.original}}" class="btn btn-primary">Original</a>
-                        <a href="{{this.original}}" class="btn btn-secondary" download>Download</a>
+                        <a href="{{relative-path this.original}}" class="btn btn-primary" download>Download</a>
+                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#full-view" data-bs-src="{{relative-path this.original}}" data-bs-title="{{this.name}}">
+                            Preview
+                        </button>
                     </div>
                 </div>
             </div>
@@ -65,28 +74,51 @@
 
 </div>
 
+<div class="modal" id="full-view-modal" tabindex="-1" aria-labelledby="image-full-view" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+            </div>
+            <div class="modal-body">
+                <img id="modal-image" src="#" alt="">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a class="btn btn-primary" href="#" download>Download</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+        crossorigin="anonymous"></script>
+
 <!-- Bootstrap JS -->
 <script crossorigin="anonymous"
         integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa"
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-
 <!-- Masonry layout -->
 <script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
-        integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous"
-        async></script>
+        integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D"
+        crossorigin="anonymous"></script>
 
 <!-- Images loaded JS -->
 <script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"></script>
 
 <script>
+const debounceTimeout = 300;
+
 // Reapply masonry layout after images are loaded
 
 let $grid = $('.row').masonry({
   itemSelector: '.grid-item',
   columnWidth: '.grid-sizer',
-  percentPosition: true
+  percentPosition: true,
+//  transitionDuration: '0.2s',
 });
 
 $grid.imagesLoaded().progress(function() {
@@ -115,33 +147,53 @@ function guard(e) {
     return categoryMatches && nameMatches
 }
 
+let nameDebounce = null;
 // Search by name
 $('#name').on('input', function() {
+    clearTimeout(nameDebounce);
     name = $(this).val();
 
-    $('.wallpaper')
-        .addClass('d-none')
-        .filter(function(i, e) {
-            return guard(e)
-        })
-        .removeClass('d-none');
+    nameDebounce = setTimeout(function() {
+        $('.wallpaper')
+            .addClass('d-none')
+            .filter(function(i, e) {
+                return guard(e)
+            })
+            .removeClass('d-none');
 
-    $grid.masonry('layout');
+        $grid.masonry('layout');
+    }, debounceTimeout);
 });
+
 
 // Filter by category
-$('#categories').on('change', function() {
+let categoryDebounce = null;
+$('#category').on('change', function() {
+    clearTimeout(categoryDebounce);
     category = $(this).val();
 
-    $('.wallpaper')
-        .addClass('d-none')
-        .filter(function(i, e) {
-            return guard(e)
-        })
-        .removeClass('d-none');
+    categoryDebounce = setTimeout(function() {
+        $('.wallpaper')
+            .addClass('d-none')
+            .filter(function(i, e) {
+                return guard(e)
+            })
+            .removeClass('d-none');
 
-    $grid.masonry('layout');
+        $grid.masonry('layout');
+    }, debounceTimeout);
 });
+
+
+$('#full-view-modal')
+    .on('show.bs.modal', function(e) {
+        const modal = $('#full-view-modal');
+        const button = $(e.relatedTarget);
+        const src = button.data('bs-src');
+        const title = button.data('bs-title');
+        modal.find('.modal-title').text(title);
+        modal.find('.modal-image').attr('src', src);
+    })
 </script>
 </body>
 </html>
