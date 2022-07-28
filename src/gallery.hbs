@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+          name="viewport">
+    <meta content="ie=edge" http-equiv="X-UA-Compatible">
+    <title>{{title}}</title>
+
+    <!-- Bootstrap CSS -->
+    <link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css"
+          integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" rel="stylesheet">
+
+</head>
+<body>
+<div class="container-fluid py-3">
+    <div class="row gy-3" data-masonry='{"percentPosition": true }'>
+        {{#each mappings}}
+            <div class="col-4">
+                <div class="card">
+                    <img class="card-img-top" src="{{this.medium}}" alt="{{this.name}}" loading="lazy">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            {{this.name}}
+                        </h5>
+                        <p class="card-text">
+                            <span class="badge" style="background: #{{this.color}}">
+                                {{this.width}}x{{this.height}}
+                            </span>
+                            {{#if this.category}}
+                                <span class="badge" style="background: #{{this.color}}">
+                                    {{this.category}}
+                                </span>
+                            {{/if}}
+                        </p>
+                        <a href="{{this.original}}" class="btn btn-primary">Original</a>
+                        <a href="{{this.original}}" class="btn btn-secondary" download>Download</a>
+                    </div>
+                </div>
+            </div>
+        {{/each}}
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script crossorigin="anonymous"
+        integrity="sha384-A3rJD856KowSb7dwlZdYEkO39Gagi7vIsF0jrRAoQmDKKtQBHUuLZ9AsSv4jD4Xa"
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Masonry layout -->
+<script src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js"
+        integrity="sha384-GNFwBvfVxBkLMJpYMOABq3c+d3KnQxudP/mGPkzpZSTYykLBNsZEnG2D9G/X/+7D" crossorigin="anonymous"
+        async></script>
+</body>
+</html>

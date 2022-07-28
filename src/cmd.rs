@@ -3,8 +3,8 @@ use std::error::Error;
 use clap::{Command, command};
 use colored::Colorize;
 
-use crate::common::PICTURA;
 use crate::gallery;
+use crate::common::PICTURA;
 
 const INIT_CMD: &str = "init";
 const INIT_CMD_NAME_ARG: &str = "name";

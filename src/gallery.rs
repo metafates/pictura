@@ -8,7 +8,8 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::common::{get_compressed_dir, get_config_file, get_mappings_file, get_medium_dir, get_pictura_dir, get_wallpapers_dir, IMAGE_EXTENSIONS};
+use crate::common::{get_compressed_dir, get_config_file, get_mappings_file, get_medium_dir, get_pictura_dir, get_wallpapers_dir, get_web_dir, IMAGE_EXTENSIONS};
+use crate::web;
 
 /// Initialize a new gallery.
 pub fn init(name: &str) -> io::Result<()> {
@@ -18,6 +19,7 @@ pub fn init(name: &str) -> io::Result<()> {
         get_pictura_dir(),
         get_compressed_dir(),
         get_medium_dir(),
+        get_web_dir(),
     ]
         .into_iter()
         .try_for_each(|dir| -> io::Result<()> {
@@ -38,27 +40,38 @@ pub fn init(name: &str) -> io::Result<()> {
         "",
     )?;
 
+    fs::write(
+        get_web_dir().join("index.html"),
+        web::gen_html(name, Mappings::default()),
+    )?;
+
     Ok(())
 }
 
 /// Represents a single image mapping in the gallery.
 /// This is used to map a compressed image with metadata in it's name to a gallery image.
 #[derive(Serialize, Deserialize, Debug)]
-struct Mapping {
+pub struct Mapping {
     /// Image name (without extension)
-    name: String,
+    pub name: String,
     // Image extension
-    extension: String,
+    pub extension: String,
     // Image category
-    category: Option<String>,
+    pub category: Option<String>,
     /// Image width in px
-    width: u32,
+    pub width: u32,
     /// Image height in px
-    height: u32,
+    pub height: u32,
     /// Dominant color of an image in HEX format
-    color: String,
+    pub color: String,
     /// Unique identifier of an image
-    id: u32,
+    pub id: u32,
+    /// Compressed path
+    pub compressed: Option<PathBuf>,
+    /// Medium path
+    pub medium: Option<PathBuf>,
+    /// Original path
+    pub original: Option<PathBuf>,
 }
 
 impl Mapping {
@@ -117,17 +130,26 @@ impl Mapping {
             height,
             color,
             id,
+            compressed: None,
+            medium: None,
+            original: None,
         };
 
         Ok(mapping)
     }
 
-    pub fn get_path(&self) -> PathBuf {
-        let filename = format!("{}.{}", self.name, self.extension);
-        match &self.category {
-            Some(category) => get_wallpapers_dir().join(category).join(filename),
-            None => get_wallpapers_dir().join(filename),
-        }
+    pub fn setup_paths(&mut self) -> io::Result<()> {
+        let gallery_root = get_pictura_root_dir()?;
+
+        self.compressed = Some(gallery_root.join(get_compressed_dir()).join(self.to_string()));
+        self.medium = Some(gallery_root.join(get_medium_dir()).join(self.to_string()));
+
+        self.original = match &self.category {
+            Some(category) => Some(gallery_root.join(get_wallpapers_dir()).join(category).join(format!("{}.{}", self.name, self.extension))),
+            None => Some(gallery_root.join(get_wallpapers_dir()).join(format!("{}.{}", self.name, self.extension))),
+        };
+
+        Ok(())
     }
 }
 
@@ -165,8 +187,19 @@ impl PartialEq for Mapping {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Mappings {
-    mappings: Option<Vec<Mapping>>,
+pub struct Mappings {
+    pub(crate) mappings: Option<Vec<Mapping>>,
+}
+
+impl Default for Mappings {
+    fn default() -> Self {
+        Self { mappings: None }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Config {
+    pub(crate) name: String,
 }
 
 /// Sync the gallery with the filesystem.
@@ -177,9 +210,22 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         fs::read_to_string(gallery_root.join(get_mappings_file()))?.as_str()
     )?;
 
+    let config: Config = toml::from_str(
+        fs::read_to_string(gallery_root.join(get_config_file()))?.as_str()
+    )?;
+
     let mut mappings = mappings.mappings.unwrap_or(Vec::new());
     let mut to_remove: Vec<usize> = Vec::with_capacity(mappings.len());
     let mut to_add: Vec<PathBuf> = Vec::with_capacity(mappings.len());
+
+    mappings
+        .iter_mut()
+        .try_for_each(|mapping| -> io::Result<()> {
+            mapping.setup_paths()?;
+
+            Ok(())
+        })?;
+
 
     let images: Vec<PathBuf> = WalkDir::new(gallery_root.join(get_wallpapers_dir()))
         .into_iter()
@@ -192,19 +238,38 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
     images
         .iter()
         .for_each(|i| {
-            // if mappings.iter().find(|m| m.name == i.file_stem().unwrap().to_str().unwrap()).is_none() {
-            if mappings.iter().find(|m| &gallery_root.join(m.get_path()) == i).is_none() {
+            if mappings.iter().find(|m| &gallery_root.join(m.original.clone().unwrap()) == i).is_none() {
                 println!("Adding {}", i.display());
                 to_add.push(i.clone());
             }
         });
 
+    for image_path in to_add {
+        let img = image::open(&image_path)?;
+        let mut mapping = Mapping::new(&image_path, &img)?;
+        let (x, y) = (mapping.width, mapping.height);
+        let metadata_name = mapping.to_string();
+
+        // compressed
+        img
+            .thumbnail((x as f64 * 0.1).floor() as u32, (y as f64 * 0.1).floor() as u32)
+            .save(gallery_root.join(get_compressed_dir()).join(&metadata_name))?;
+
+        // medium
+        img
+            .thumbnail((x as f64 * 0.3).floor() as u32, (y as f64 * 0.3).floor() as u32)
+            .save(gallery_root.join(get_medium_dir()).join(&metadata_name))?;
+
+        mapping.setup_paths()?;
+        mappings.push(mapping);
+    }
+
     mappings
         .iter()
         .enumerate()
         .for_each(|(i, m)| {
-            if images.iter().find(|i| i == &&gallery_root.join(m.get_path())).is_none() {
-                println!("Removing {}", gallery_root.join(m.get_path()).display().to_string());
+            if images.iter().find(|p| p == &&gallery_root.join(m.original.clone().unwrap())).is_none() {
+                println!("Removing {}", gallery_root.join(m.original.clone().unwrap()).display().to_string());
                 to_remove.push(i);
             }
         });
@@ -221,28 +286,18 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         mappings.remove(index);
     }
 
-    for image_path in to_add {
-        let img = image::open(&image_path)?;
-        let mapping = Mapping::new(&image_path, &img)?;
-        let (x, y) = (mapping.width, mapping.height);
-        let metadata_name = mapping.to_string();
 
-        // compressed
-        img
-            .thumbnail((x as f64 * 0.1).floor() as u32, (y as f64 * 0.1).floor() as u32)
-            .save(gallery_root.join(get_compressed_dir()).join(&metadata_name))?;
-
-        // medium
-        img
-            .thumbnail((x as f64 * 0.3).floor() as u32, (y as f64 * 0.3).floor() as u32)
-            .save(gallery_root.join(get_medium_dir()).join(&metadata_name))?;
-
-        mappings.push(mapping);
-    }
+    let mappings = Mappings { mappings: Some(mappings) };
 
     fs::write(
         gallery_root.join(get_mappings_file()),
-        toml::to_string(&Mappings { mappings: Some(mappings) })?,
+        toml::to_string(&mappings)?,
+    )?;
+
+
+    fs::write(
+        gallery_root.join(get_web_dir()).join("index.html"),
+        web::gen_html(config.name.as_str(), mappings),
     )?;
 
     Ok(())
@@ -256,7 +311,7 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .unwrap_or(false)
 }
 
-fn get_pictura_root_dir() -> io::Result<PathBuf> {
+pub fn get_pictura_root_dir() -> io::Result<PathBuf> {
     let pwd = PathBuf::from(std::env::current_dir()?);
 
     for ancestor in pwd.ancestors() {
@@ -288,16 +343,8 @@ fn is_pictura_root(p: PathBuf) -> io::Result<bool> {
 }
 
 fn rgb_to_hex(r: u8, g: u8, b: u8) -> String {
-    format!("#{:02x}{:02x}{:02x}", r, g, b)
+    format!("{:02x}{:02x}{:02x}", r, g, b)
 }
-
-// fn hex_to_rgb(hex: &str) -> (u8, u8, u8) {
-//     let hex = hex.trim_start_matches("#");
-//     let r = u8::from_str_radix(&hex[0..2], 16).unwrap();
-//     let g = u8::from_str_radix(&hex[2..4], 16).unwrap();
-//     let b = u8::from_str_radix(&hex[4..6], 16).unwrap();
-//     (r, g, b)
-// }
 
 fn is_image(path: &Path) -> bool {
     let ext = path.extension().unwrap_or("".as_ref()).to_str().unwrap();
