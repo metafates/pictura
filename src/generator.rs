@@ -6,8 +6,9 @@ use handlebars::{Handlebars, handlebars_helper};
 use pathdiff::diff_paths;
 use serde_json::{json, Value};
 
-use crate::common::get_web_dir;
+use crate::common::{capitalize, get_web_dir};
 use crate::gallery;
+use crate::gallery::Config;
 
 handlebars_helper!(relative_path: |path: Value| {
     let path = PathBuf::from(path.as_str().unwrap());
@@ -23,14 +24,7 @@ handlebars_helper!(title_case: |string: Value| {
     let re = regex::Regex::new(r"[-_ ]").unwrap();
 
     re.split(string.as_str().unwrap())
-        .map(|word| {
-
-            let mut c = word.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
+        .map(capitalize)
         .collect::<Vec<String>>()
         .join(" ")
 });
@@ -47,16 +41,46 @@ handlebars_helper!(length: |value: Value| {
     }
 });
 
-pub fn gen_html(name: &str, mappings: gallery::Mappings) -> String {
+handlebars_helper!(contrast_color: |hex: Value| {
+    let hex = hex.as_str().unwrap();
+
+    let hex = {
+        if hex.chars().next().unwrap() == '#' {
+            hex.chars().skip(1).collect::<String>()
+        } else {
+            hex.to_string()
+        }
+    };
+
+    if hex.len() != 6 {
+        panic!("Hex color must be 6 characters long");
+    }
+
+    let (r, g, b) = (
+        u8::from_str_radix(&hex[0..2], 16).unwrap(),
+        u8::from_str_radix(&hex[2..4], 16).unwrap(),
+        u8::from_str_radix(&hex[4..6], 16).unwrap(),
+    );
+
+    if r as f32 * 0.299 + g as f32 * 0.587 + b as f32 * 0.114 > 186 as f32 {
+        "#000000".to_string()
+    } else {
+        "#ffffff".to_string()
+    }
+});
+
+pub fn gen_html(config: &Config, mappings: gallery::Mappings) -> String {
     let mut reg = Handlebars::new();
     let hbs = include_str!("gallery.hbs");
     reg.register_template_string("gallery", hbs).unwrap();
     reg.register_helper("relative-path", Box::new(relative_path));
     reg.register_helper("title-case", Box::new(title_case));
     reg.register_helper("length", Box::new(length));
+    reg.register_helper("contrast-color", Box::new(contrast_color));
 
-    let mappings = mappings.mappings.unwrap_or(Vec::new());
+    let mut mappings = mappings.mappings.unwrap_or(Vec::new());
     let mut categories: HashSet<String> = HashSet::new();
+    let mut extensions: HashSet<String> = HashSet::new();
 
     mappings
         .iter()
@@ -64,14 +88,18 @@ pub fn gen_html(name: &str, mappings: gallery::Mappings) -> String {
             if let Some(category) = &mapping.category {
                 categories.insert(category.clone());
             }
+            extensions.insert(mapping.extension.clone());
         });
+
+    mappings.sort_unstable_by_key(|mapping| mapping.name.clone());
 
     reg.render(
         "gallery",
         &json!({
-            "title": name,
+            "config": config,
             "mappings": mappings,
             "categories": categories,
+            "extensions": extensions,
         }))
         .unwrap()
 }

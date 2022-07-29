@@ -31,3 +31,11 @@ pub fn get_mappings_file() -> PathBuf {
 pub fn get_web_dir() -> PathBuf {
     PathBuf::from(".")
 }
+
+pub fn capitalize(string: &str) -> String {
+    let mut c = string.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
+}

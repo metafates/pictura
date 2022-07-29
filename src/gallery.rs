@@ -9,11 +9,11 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::common::{get_compressed_dir, get_config_file, get_mappings_file, get_medium_dir, get_pictura_dir, get_wallpapers_dir, get_web_dir, IMAGE_EXTENSIONS};
+use crate::common::{capitalize, get_compressed_dir, get_config_file, get_mappings_file, get_medium_dir, get_pictura_dir, get_wallpapers_dir, get_web_dir, IMAGE_EXTENSIONS};
 use crate::generator;
 
 /// Initialize a new gallery.
-pub fn init(name: &str) -> io::Result<()> {
+pub fn init(config: &Config) -> io::Result<()> {
     // create all these directories if they don't exist
     vec![
         get_wallpapers_dir(),
@@ -33,7 +33,7 @@ pub fn init(name: &str) -> io::Result<()> {
 
     fs::write(
         get_config_file(),
-        format!("name = \"{}\"", name),
+        toml::to_string(&config).unwrap(),
     )?;
 
     fs::write(
@@ -43,7 +43,7 @@ pub fn init(name: &str) -> io::Result<()> {
 
     fs::write(
         get_web_dir().join("index.html"),
-        generator::gen_html(name, Mappings::default()),
+        generator::gen_html(&config, Mappings::default()),
     )?;
 
     Ok(())
@@ -142,13 +142,20 @@ impl Mapping {
     pub fn setup_paths(&mut self) -> io::Result<()> {
         let gallery_root = get_pictura_root_dir()?;
 
-        self.compressed = Some(gallery_root.join(get_compressed_dir()).join(self.to_string()));
-        self.medium = Some(gallery_root.join(get_medium_dir()).join(self.to_string()));
+        if self.compressed.is_none() {
+            self.compressed = Some(gallery_root.join(get_compressed_dir()).join(self.to_string()));
+        }
 
-        self.original = match &self.category {
-            Some(category) => Some(gallery_root.join(get_wallpapers_dir()).join(category).join(format!("{}.{}", self.name, self.extension))),
-            None => Some(gallery_root.join(get_wallpapers_dir()).join(format!("{}.{}", self.name, self.extension))),
-        };
+        if self.medium.is_none() {
+            self.medium = Some(gallery_root.join(get_medium_dir()).join(self.to_string()));
+        }
+
+        if self.original.is_none() {
+            self.original = match &self.category {
+                Some(category) => Some(gallery_root.join(get_wallpapers_dir()).join(category).join(format!("{}.{}", self.name, self.extension))),
+                None => Some(gallery_root.join(get_wallpapers_dir()).join(format!("{}.{}", self.name, self.extension))),
+            };
+        }
 
         Ok(())
     }
@@ -199,8 +206,25 @@ impl Default for Mappings {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Config {
-    pub(crate) name: String,
+pub struct Config {
+    pub(crate) title: String,
+    pub(crate) use_dark_theme: bool,
+    pub(crate) animations: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        let username = match std::env::var("USER") {
+            Ok(username) => capitalize(username.as_str()),
+            Err(_) => "Anon".to_string(),
+        };
+
+        Self {
+            title: format!("{}'s Wallpapers", username),
+            use_dark_theme: false,
+            animations: false,
+        }
+    }
 }
 
 /// Sync the gallery with the filesystem.
@@ -216,7 +240,6 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
     )?;
 
     let mut mappings = mappings.mappings.unwrap_or(Vec::new());
-    let mut to_remove: Vec<usize> = Vec::with_capacity(mappings.len());
     let mut to_add: Vec<PathBuf> = Vec::with_capacity(mappings.len());
     let mut added: usize = 0;
     let mut removed: usize = 0;
@@ -281,29 +304,31 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
         added += 1;
     }
 
-    mappings
-        .iter()
-        .enumerate()
-        .for_each(|(i, m)| {
+    let mappings = mappings
+        .into_iter()
+        .map(|m| {
             if images.iter().find(|p| p == &&gallery_root.join(m.original.clone().unwrap())).is_none() {
-                to_remove.push(i);
+                let metadata_name = m.to_string();
+
+                vec![
+                    gallery_root.join(get_compressed_dir()).join(&metadata_name),
+                    gallery_root.join(get_medium_dir()).join(&metadata_name),
+                ]
+                    .into_iter()
+                    .for_each(|path| {
+                        if let Err(e) = fs::remove_file(&path) {
+                            warn!("Failed to remove file: {}\n{}", path.display(), e);
+                        }
+                    });
+
+                removed += 1;
+                None
+            } else {
+                Some(m)
             }
-        });
-
-    for index in to_remove.iter() {
-        let metadata_name = mappings[index.clone()].to_string();
-        vec![
-            gallery_root.join(get_compressed_dir()).join(&metadata_name),
-            gallery_root.join(get_medium_dir()).join(&metadata_name),
-        ]
-            .into_iter()
-            .try_for_each(|path| fs::remove_file(path))?;
-
-        mappings.remove(index.clone());
-
-        removed += 1;
-    }
-
+        })
+        .filter_map(|m| m)
+        .collect();
 
     let mappings = Mappings { mappings: Some(mappings) };
 
@@ -315,7 +340,7 @@ pub fn sync() -> Result<(), Box<dyn Error>> {
 
     fs::write(
         gallery_root.join(get_web_dir()).join("index.html"),
-        generator::gen_html(config.name.as_str(), mappings),
+        generator::gen_html(&config, mappings),
     )?;
 
     info!("{added} images added, {removed} images removed");
