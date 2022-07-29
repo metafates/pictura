@@ -9,7 +9,7 @@ pub fn get_pictura_dir() -> PathBuf {
 }
 
 pub fn get_wallpapers_dir() -> PathBuf {
-    PathBuf::from("Wallpapers")
+    PathBuf::from("wallpapers")
 }
 
 pub fn get_compressed_dir() -> PathBuf {

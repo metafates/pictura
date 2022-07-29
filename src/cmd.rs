@@ -25,18 +25,21 @@ fn init<'a>() -> Command<'a> {
                         .help("Name of the gallery")
                         .long(INIT_CMD_TITLE_ARG)
                         .short(INIT_CMD_TITLE_ARG.chars().next().unwrap())
+                        .takes_value(true)
                 )
                 .arg(
                     clap::Arg::with_name(INIT_CMD_ANIMATIONS_ARG)
                         .help("Enable animations (may affect performance)")
                         .long(INIT_CMD_ANIMATIONS_ARG)
                         .short(INIT_CMD_ANIMATIONS_ARG.chars().next().unwrap())
+                        .takes_value(false)
                 )
                 .arg(
                     clap::Arg::with_name(INIT_CMD_DARK_THEME_ARG)
                         .help("Add support for dark theme")
                         .long(INIT_CMD_DARK_THEME_ARG)
                         .short(INIT_CMD_DARK_THEME_ARG.chars().next().unwrap())
+                        .takes_value(false)
                 )
         )
         .subcommand(

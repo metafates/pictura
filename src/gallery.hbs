@@ -74,10 +74,11 @@
         {{#each mappings}}
             <div class="grid-item col-12 col-md-6 col-lg-4 col-xxl-2 wallpaper">
                 <div class="card shadow">
-                    <picture>
-                        <source srcset="{{path-join ../config.github_raw_root_url with=(relative-path this.medium)}}">
+                    {{#if ../config.github_raw_root_url}}
+                        <img class="card-img-top" src="{{path-join ../config.github_raw_root_url with=(relative-path this.medium)}}" alt="{{this.name}}" loading="lazy">
+                    {{else}}
                         <img class="card-img-top" src="{{relative-path this.medium}}" alt="{{this.name}}" loading="lazy">
-                    </picture>
+                    {{/if}}
                     <div class="card-body">
                         <h5 class="card-title">
                             {{title-case this.name}}
@@ -114,12 +115,22 @@
                                 </span>
                             {{/if}}
                         </p>
+
+                    {{#if ../config.github_raw_root_url}}
+                        <a href="{{path-join ../config.github_raw_root_url with=(relative-path this.original)}}" class="btn btn-primary" download>
+                            <i class="bi bi-download"></i>
+                        </a>
+                        <a href="{{path-join ../config.github_raw_root_url with=(relative-path this.original)}}" class="btn btn-secondary" target="_blank">
+                            <i class="bi bi-zoom-in"></i>
+                        </a>
+                    {{else}}
                         <a href="{{relative-path this.original}}" class="btn btn-primary" download>
                             <i class="bi bi-download"></i>
                         </a>
                         <a href="{{relative-path this.original}}" class="btn btn-secondary" target="_blank">
                             <i class="bi bi-zoom-in"></i>
                         </a>
+                    {{/if}}
                     </div>
                 </div>
             </div>
