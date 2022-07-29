@@ -10,6 +10,14 @@ use crate::common::{capitalize, get_web_dir};
 use crate::gallery;
 use crate::gallery::Config;
 
+handlebars_helper!(path_join: |path: Value, {with:str="."}| {
+    let path = PathBuf::from(path.as_str().unwrap_or(""));
+    let with_path = PathBuf::from(with);
+    // println!("{}/{}", path.display(), with);
+
+    path.join(&with_path).to_str().unwrap().to_string()
+});
+
 handlebars_helper!(relative_path: |path: Value| {
     let path = PathBuf::from(path.as_str().unwrap());
     let page_dir = fs::canonicalize(get_web_dir()).unwrap();
@@ -62,6 +70,7 @@ pub fn gen_html(config: &Config, mappings: gallery::Mappings) -> String {
     reg.register_helper("length", Box::new(length));
     reg.register_helper("contrast-color", Box::new(contrast_color));
     reg.register_helper("is-dark", Box::new(is_dark_helper));
+    reg.register_helper("path-join", Box::new(path_join));
 
     let mut mappings = mappings.mappings.unwrap_or(Vec::new());
     let mut categories: HashSet<String> = HashSet::new();

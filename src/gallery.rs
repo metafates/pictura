@@ -216,6 +216,7 @@ pub struct Config {
     pub(crate) title: String,
     pub(crate) use_dark_theme: bool,
     pub(crate) animations: bool,
+    pub(crate) github_raw_root_url: Option<String>
 }
 
 impl Default for Config {
@@ -229,6 +230,7 @@ impl Default for Config {
             title: format!("{}'s Wallpapers", username),
             use_dark_theme: false,
             animations: false,
+            github_raw_root_url: None
         }
     }
 }
