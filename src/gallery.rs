@@ -112,11 +112,17 @@ impl Mapping {
         let (width, height) = img.dimensions();
 
         // dominant color of an image in HEX format
+        let color_type = match img.color() {
+            image::ColorType::Rgb8 | image::ColorType::Rgb16 => color_thief::ColorFormat::Rgb,
+            image::ColorType::Rgba8 | image::ColorType::Rgba16 => color_thief::ColorFormat::Rgba,
+            _ => color_thief::ColorFormat::Rgb,
+        };
+
         let color = color_thief::get_palette(
             img.as_bytes(),
-            color_thief::ColorFormat::Rgb,
-            1,
-            2,
+            color_type,
+            10,
+            5,
         )?[0];
         let color = rgb_to_hex(color.r, color.g, color.b);
 

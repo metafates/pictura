@@ -41,31 +41,15 @@ handlebars_helper!(length: |value: Value| {
     }
 });
 
+handlebars_helper!(is_dark_helper: |hex: Value| {
+    is_dark(hex.as_str().unwrap())
+});
+
 handlebars_helper!(contrast_color: |hex: Value| {
-    let hex = hex.as_str().unwrap();
-
-    let hex = {
-        if hex.chars().next().unwrap() == '#' {
-            hex.chars().skip(1).collect::<String>()
-        } else {
-            hex.to_string()
-        }
-    };
-
-    if hex.len() != 6 {
-        panic!("Hex color must be 6 characters long");
-    }
-
-    let (r, g, b) = (
-        u8::from_str_radix(&hex[0..2], 16).unwrap(),
-        u8::from_str_radix(&hex[2..4], 16).unwrap(),
-        u8::from_str_radix(&hex[4..6], 16).unwrap(),
-    );
-
-    if r as f32 * 0.299 + g as f32 * 0.587 + b as f32 * 0.114 > 186 as f32 {
-        "#000000".to_string()
-    } else {
+    if is_dark(hex.as_str().unwrap()) {
         "#ffffff".to_string()
+    } else {
+        "#000000".to_string()
     }
 });
 
@@ -77,6 +61,7 @@ pub fn gen_html(config: &Config, mappings: gallery::Mappings) -> String {
     reg.register_helper("title-case", Box::new(title_case));
     reg.register_helper("length", Box::new(length));
     reg.register_helper("contrast-color", Box::new(contrast_color));
+    reg.register_helper("is-dark", Box::new(is_dark_helper));
 
     let mut mappings = mappings.mappings.unwrap_or(Vec::new());
     let mut categories: HashSet<String> = HashSet::new();
@@ -102,4 +87,26 @@ pub fn gen_html(config: &Config, mappings: gallery::Mappings) -> String {
             "extensions": extensions,
         }))
         .unwrap()
+}
+
+fn is_dark(hex: &str) -> bool {
+    let hex = {
+        if hex.chars().next().unwrap() == '#' {
+            hex.chars().skip(1).collect::<String>()
+        } else {
+            hex.to_string()
+        }
+    };
+
+    if hex.len() != 6 {
+        panic!("Hex color must be 6 characters long");
+    }
+
+    let (r, g, b) = (
+        u8::from_str_radix(&hex[0..2], 16).unwrap(),
+        u8::from_str_radix(&hex[2..4], 16).unwrap(),
+        u8::from_str_radix(&hex[4..6], 16).unwrap(),
+    );
+
+    r as f32 * 0.299 + g as f32 * 0.587 + b as f32 * 0.114 <= 186 as f32
 }
