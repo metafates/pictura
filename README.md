@@ -11,6 +11,7 @@
 
 - [About](#about)
 - [Usage](#usage)
+- [Configuration](#configuration)
 - [Installation](#installation)
 
 ## About
@@ -27,14 +28,14 @@ a fancy static html page.
 mkdir mywalls
 cd mywalls
 
-# This will initialize pictura and create `Wallpapers` folder
+# This will initialize pictura and create `wallpapers` folder
 # See `pictura init --help` for more info
 pictura init 
 
 # Add some wallpapers
 mv oldwalls/* Wallpapers
 
-# Dirs inside `Wallpapers` will be treated as categories 
+# Dirs inside `wallpapers` will be treated as categories 
 mkdir Wallpapers/Nature
 mv oldwalls/*forest* Wallpapers/Nature
 
@@ -42,7 +43,27 @@ mv oldwalls/*forest* Wallpapers/Nature
 pictura sync
 ```
 
+## Configuration
+
 You can edit gallery configuration file at `.pictura/config.toml`
+
+> Pictura is in the early stages of development.
+> Configuration file is not yet stable and may change in future.
+
+```toml
+# Gallery name
+title = "Wallery"
+
+# Enable dark theme support (will be used if system dark theme is enabled)
+use_dark_theme = false
+
+# Use animations (affects performance)
+animations = false
+
+# Github raw images content url
+# Set this if you want to host page on github pages
+github_raw_root_url = "https://raw.githubusercontent.com/<USERNAME>/<REPO>/<BRANCH>"
+```
 
 ## Installation
 
