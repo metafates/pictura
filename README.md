@@ -1,6 +1,6 @@
 <h1 align="center">Pictura</h1>  
 <p align="center">
-    <img width="200" src="assets/logo.png">
+    <img width="200" src="assets/logo.png" alt="Pictura Logo">
 </p>
 
 <h3 align="center">
@@ -19,6 +19,8 @@ Pictura is a wallpaper manager that automatically
 gathers wallpapers metadata, compresses them and generates
 a fancy static html page.
 
+![Example of generated page](assets/screenshot.png)
+
 ## Usage
 
 ```bash
@@ -32,7 +34,7 @@ pictura init
 # Add some wallpapers
 mv oldwalls/* Wallpapers
 
-# Dirs inside `Wallpaper` will be treated as categories 
+# Dirs inside `Wallpapers` will be treated as categories 
 mkdir Wallpapers/Nature
 mv oldwalls/*forest* Wallpapers/Nature
 
