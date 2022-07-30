@@ -3,34 +3,38 @@ use std::path::PathBuf;
 pub const PICTURA: &str = "pictura";
 pub const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png"];
 
+pub mod paths {
+    use super::*;
 
-pub fn get_pictura_dir() -> PathBuf {
-    PathBuf::from(format!(".{PICTURA}"))
+    pub fn pictura() -> PathBuf {
+        PathBuf::from(format!(".{PICTURA}"))
+    }
+
+    pub fn wallpapers() -> PathBuf {
+        PathBuf::from("wallpapers")
+    }
+
+    pub fn compressed() -> PathBuf {
+        pictura().join("compressed")
+    }
+
+    pub fn medium() -> PathBuf {
+        pictura().join("medium")
+    }
+
+    pub fn config_file() -> PathBuf {
+        pictura().join("config.toml")
+    }
+
+    pub fn pictures_file() -> PathBuf {
+        pictura().join("pictures.toml")
+    }
+
+    pub fn html_file() -> PathBuf {
+        PathBuf::from("index.html")
+    }
 }
 
-pub fn get_wallpapers_dir() -> PathBuf {
-    PathBuf::from("wallpapers")
-}
-
-pub fn get_compressed_dir() -> PathBuf {
-    get_pictura_dir().join("compressed")
-}
-
-pub fn get_medium_dir() -> PathBuf {
-    get_pictura_dir().join("medium")
-}
-
-pub fn get_config_file() -> PathBuf {
-    get_pictura_dir().join("config.toml")
-}
-
-pub fn get_mappings_file() -> PathBuf {
-    get_pictura_dir().join("mappings.toml")
-}
-
-pub fn get_web_dir() -> PathBuf {
-    PathBuf::from(".")
-}
 
 pub fn capitalize(string: &str) -> String {
     let mut c = string.chars();

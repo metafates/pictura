@@ -13,21 +13,24 @@
           integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx"
           rel="stylesheet">
 
-    {{#if config.use_dark_theme}}
-    <!-- Bootstrap Dark Theme -->
-    <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/@forevolve/bootstrap-dark@2.0.0/dist/css/bootstrap-light-prefers-dark.min.css" />
+    {{#if config.dark_theme_support}}
+        <!-- Bootstrap Dark Theme -->
+        <link rel="stylesheet"
+              href="https://cdn.jsdelivr.net/npm/@forevolve/bootstrap-dark@2.0.0/dist/css/bootstrap-light-prefers-dark.min.css"
+              crossorigin="anonymous">
     {{/if}}
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css"
+          crossorigin="anonymous">
 
 </head>
 <body>
 <div class="px-4 my-5 text-center">
     <h1>{{config.title}}</h1>
     <p class="text-secondary">
-        {{length mappings}} Wallpapers
+        {{length pictures}} Wallpapers
     </p>
     <div class="container">
         <div class="row h-100">
@@ -58,7 +61,8 @@
     </div>
 </div>
 <div class="container-fluid py-3">
-    <div id="no-results" class="d-flex {{#if (length mappings)}}d-none{{/if}} justify-content-center align-items-center pb-5">
+    <div id="no-results"
+         class="d-flex {{#if (length pictures)}}d-none{{/if}} justify-content-center align-items-center pb-5">
         <div class="mx-2 text-muted" style="font-size: 4rem">
             <i class="bi bi-balloon-heart"></i>
         </div>
@@ -71,13 +75,16 @@
     </div>
     <div class="row gy-3">
         <div class="grid-sizer cod-12 col-md-6 col-lg-4 col-xxl-2"></div>
-        {{#each mappings}}
+        {{#each pictures}}
             <div class="grid-item col-12 col-md-6 col-lg-4 col-xxl-2 wallpaper">
                 <div class="card shadow">
-                    {{#if ../config.github_raw_root_url}}
-                        <img class="card-img-top" src="{{path-join ../config.github_raw_root_url with=(relative-path this.medium)}}" alt="{{this.name}}" loading="lazy">
+                    {{#if ../config.remote}}
+                        <img class="card-img-top"
+                             src="{{join-path ../config.remote with=(relative-path this.medium)}}"
+                             alt="{{this.name}}" loading="lazy">
                     {{else}}
-                        <img class="card-img-top" src="{{relative-path this.medium}}" alt="{{this.name}}" loading="lazy">
+                        <img class="card-img-top" src="{{relative-path this.medium}}" alt="{{this.name}}"
+                             loading="lazy">
                     {{/if}}
                     <div class="card-body">
                         <h5 class="card-title">
@@ -85,52 +92,54 @@
                         </h5>
                         <p class="card-text">
                         <span
-                            class="badge"
-                            style="background: #{{this.color}}; color: {{contrast-color this.color}}"
+                                class="badge"
+                                style="background: #{{this.color}}; color: {{contrast-color this.color}}"
                         >
                             {{this.width}}x{{this.height}}
                         </span>
-                        <span
-                            class="badge"
-                            style="background: #{{this.color}}; color: {{contrast-color this.color}}"
-                        >
-                            {{#if (is-dark this.color)}}
-                                dark
-                            {{else}}
-                                light
-                            {{/if}}
-                        </span>
-                        <span
-                            class="badge"
-                            style="background: #{{this.color}}; color: {{contrast-color this.color}}"
-                        >
-                            {{this.extension}}
-                        </span>
-                            {{#if this.category}}
-                                <span
+                            <span
                                     class="badge"
                                     style="background: #{{this.color}}; color: {{contrast-color this.color}}"
+                            >
+                                {{#if (is-dark this.color)}}
+                                    dark
+                                {{else}}
+                                    light
+                                {{/if}}
+                            </span>
+                            <span
+                                    class="badge"
+                                    style="background: #{{this.color}}; color: {{contrast-color this.color}}"
+                            >
+                                {{this.extension}}
+                            </span>
+                            {{#if this.category}}
+                                <span
+                                        class="badge"
+                                        style="background: #{{this.color}}; color: {{contrast-color this.color}}"
                                 >
                                     {{this.category}}
                                 </span>
                             {{/if}}
                         </p>
 
-                    {{#if ../config.github_raw_root_url}}
-                        <a href="{{path-join ../config.github_raw_root_url with=(relative-path this.original)}}" class="btn btn-primary" download>
-                            <i class="bi bi-download"></i>
-                        </a>
-                        <a href="{{path-join ../config.github_raw_root_url with=(relative-path this.original)}}" class="btn btn-secondary" target="_blank">
-                            <i class="bi bi-zoom-in"></i>
-                        </a>
-                    {{else}}
-                        <a href="{{relative-path this.original}}" class="btn btn-primary" download>
-                            <i class="bi bi-download"></i>
-                        </a>
-                        <a href="{{relative-path this.original}}" class="btn btn-secondary" target="_blank">
-                            <i class="bi bi-zoom-in"></i>
-                        </a>
-                    {{/if}}
+                        {{#if ../config.remote}}
+                            <a href="{{join-path ../config.remote with=(relative-path this.original)}}"
+                               class="btn btn-primary" download>
+                                <i class="bi bi-download"></i>
+                            </a>
+                            <a href="{{join-path ../config.remote with=(relative-path this.original)}}"
+                               class="btn btn-secondary" target="_blank">
+                                <i class="bi bi-zoom-in"></i>
+                            </a>
+                        {{else}}
+                            <a href="{{relative-path this.original}}" class="btn btn-primary" download>
+                                <i class="bi bi-download"></i>
+                            </a>
+                            <a href="{{relative-path this.original}}" class="btn btn-secondary" target="_blank">
+                                <i class="bi bi-zoom-in"></i>
+                            </a>
+                        {{/if}}
                     </div>
                 </div>
             </div>
@@ -138,7 +147,9 @@
     </div>
     <div class="container">
         <footer class="d-flex justify-content-center py-3 mt-5 border-top">
-            <p class="mb-0 mt-2 text-muted">Generated by <a class="link-primary" href="https://github.com/metafates/pictura" target="_blank"><strong>pictura</strong></a></p>
+            <p class="mb-0 mt-2 text-muted">Generated by <a class="link-primary"
+                                                            href="https://github.com/metafates/pictura" target="_blank"><strong>pictura</strong></a>
+            </p>
         </footer>
     </div>
 
@@ -242,6 +253,17 @@ $('#category').on('change', function() {
 
     categoryDebounce = setTimeout(onSearch, debounceTimeout);
 });
+
+
+
+
+
+
+
+
+
+
+
 </script>
 </body>
 </html>

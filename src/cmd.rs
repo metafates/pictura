@@ -5,7 +5,7 @@ use colored::Colorize;
 
 use crate::common::PICTURA;
 use crate::gallery;
-use crate::gallery::Config;
+use crate::config::Config;
 
 const INIT_CMD: &str = "init";
 const INIT_CMD_TITLE_ARG: &str = "title";
@@ -61,7 +61,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             }
 
             config.animations = sub_matches.is_present(INIT_CMD_ANIMATIONS_ARG);
-            config.use_dark_theme = sub_matches.is_present(INIT_CMD_DARK_THEME_ARG);
+            config.dark_theme_support = sub_matches.is_present(INIT_CMD_DARK_THEME_ARG);
 
             gallery::init(&config)?;
 

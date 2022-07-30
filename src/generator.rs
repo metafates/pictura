@@ -1,30 +1,31 @@
 use std::collections::HashSet;
 use std::fs;
+use std::fs::read_to_string;
 use std::path::PathBuf;
 
-use handlebars::{Handlebars, handlebars_helper};
+use handlebars::{Handlebars, handlebars_helper, RenderError};
 use pathdiff::diff_paths;
 use serde_json::{json, Value};
 
-use crate::common::{capitalize, get_web_dir};
+use crate::common::{capitalize, paths};
+use crate::config::Config;
 use crate::gallery;
-use crate::gallery::Config;
+use crate::gallery::get_pictura_root_dir;
 
-handlebars_helper!(path_join: |path: Value, {with:str="."}| {
+handlebars_helper!(join_path: |path: Value, {with:str="."}| {
     let path = PathBuf::from(path.as_str().unwrap_or(""));
     let with_path = PathBuf::from(with);
-    // println!("{}/{}", path.display(), with);
 
     path.join(&with_path).to_str().unwrap().to_string()
 });
 
 handlebars_helper!(relative_path: |path: Value| {
     let path = PathBuf::from(path.as_str().unwrap());
-    let page_dir = fs::canonicalize(get_web_dir()).unwrap();
+    let page = fs::canonicalize(paths::html_file()).unwrap();
 
     diff_paths(
         fs::canonicalize(path).unwrap(),
-        page_dir.clone(),
+        page.clone().parent().unwrap(),
     ).unwrap().to_str().unwrap().to_string()
 });
 
@@ -61,22 +62,35 @@ handlebars_helper!(contrast_color: |hex: Value| {
     }
 });
 
-pub fn gen_html(config: &Config, mappings: gallery::Mappings) -> String {
+pub fn gen_html(config: &Config, pictures: gallery::Pictures) -> Result<String, RenderError> {
     let mut reg = Handlebars::new();
-    let hbs = include_str!("gallery.hbs");
-    reg.register_template_string("gallery", hbs).unwrap();
+    let theme = {
+        let default_theme = include_str!("gallery.hbs");
+        if let Ok(dir) = get_pictura_root_dir() {
+            let custom_theme = dir.join(paths::pictura()).join("index.hbs");
+            if custom_theme.exists() {
+                read_to_string(custom_theme).unwrap_or(default_theme.to_string())
+            } else {
+                default_theme.to_string()
+            }
+        } else {
+            default_theme.to_string()
+        }
+    };
+
+    reg.register_template_string("gallery", theme).unwrap();
     reg.register_helper("relative-path", Box::new(relative_path));
     reg.register_helper("title-case", Box::new(title_case));
     reg.register_helper("length", Box::new(length));
     reg.register_helper("contrast-color", Box::new(contrast_color));
     reg.register_helper("is-dark", Box::new(is_dark_helper));
-    reg.register_helper("path-join", Box::new(path_join));
+    reg.register_helper("join-path", Box::new(join_path));
 
-    let mut mappings = mappings.mappings.unwrap_or(Vec::new());
+    let mut pictures = pictures.pictures.unwrap_or(Vec::new());
     let mut categories: HashSet<String> = HashSet::new();
     let mut extensions: HashSet<String> = HashSet::new();
 
-    mappings
+    pictures
         .iter()
         .for_each(|mapping| {
             if let Some(category) = &mapping.category {
@@ -85,17 +99,16 @@ pub fn gen_html(config: &Config, mappings: gallery::Mappings) -> String {
             extensions.insert(mapping.extension.clone());
         });
 
-    mappings.sort_unstable_by_key(|mapping| mapping.name.clone());
+    pictures.sort_unstable_by_key(|mapping| mapping.name.clone());
 
     reg.render(
         "gallery",
         &json!({
             "config": config,
-            "mappings": mappings,
+            "pictures": pictures,
             "categories": categories,
             "extensions": extensions,
         }))
-        .unwrap()
 }
 
 fn is_dark(hex: &str) -> bool {

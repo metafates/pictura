@@ -36,8 +36,8 @@ pictura init
 mv oldwalls/* Wallpapers
 
 # Dirs inside `wallpapers` will be treated as categories 
-mkdir Wallpapers/Nature
-mv oldwalls/*forest* Wallpapers/Nature
+mkdir wallpapers/Nature
+mv oldwalls/*forest* wallpapers/Nature
 
 # Generate the page. Now you can visit generated `index.html` 
 pictura sync
@@ -55,15 +55,18 @@ You can edit gallery configuration file at `.pictura/config.toml`
 title = "Wallery"
 
 # Enable dark theme support (will be used if system dark theme is enabled)
-use_dark_theme = false
+dark_theme_support = false
 
 # Use animations (affects performance)
 animations = false
 
-# Github raw images content url
-# Set this if you want to host page on github pages
-github_raw_root_url = "https://raw.githubusercontent.com/<USERNAME>/<REPO>/<BRANCH>"
+# If set, will be used instead of local directory
+# Useful for hosting on GitHub pages
+remote_path = "https://raw.githubusercontent.com/<USERNAME>/<REPO>/<BRANCH>"
 ```
+
+You can also use custom html template by creating `index.hbs` at `.pictura` directory.
+See [default template](./src/gallery.hbs) for reference.
 
 ## Installation
 

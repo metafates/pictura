@@ -5,6 +5,7 @@ mod common;
 mod gallery;
 mod generator;
 mod logger;
+mod config;
 
 fn main() {
     logger::init_logger();
