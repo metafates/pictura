@@ -33,7 +33,7 @@ cd mywalls
 pictura init 
 
 # Add some wallpapers
-mv oldwalls/* Wallpapers
+mv oldwalls/* wallpapers
 
 # Dirs inside `wallpapers` will be treated as categories 
 mkdir wallpapers/Nature
@@ -62,6 +62,7 @@ animations = false
 
 # If set, will be used instead of local directory
 # Useful for hosting on GitHub pages
+# Example for GitHub pages
 remote = "https://raw.githubusercontent.com/<USERNAME>/<REPO>/<BRANCH>"
 ```
 
