@@ -62,7 +62,7 @@ animations = false
 
 # If set, will be used instead of local directory
 # Useful for hosting on GitHub pages
-remote_path = "https://raw.githubusercontent.com/<USERNAME>/<REPO>/<BRANCH>"
+remote = "https://raw.githubusercontent.com/<USERNAME>/<REPO>/<BRANCH>"
 ```
 
 You can also use custom html template by creating `index.hbs` at `.pictura` directory.
